@@ -1,0 +1,43 @@
+name: Continuous Testing
+on:
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Selecionar tag da suíte de testes que será executada'
+        type: string
+        default: '@smoke'
+        required: true
+jobs:
+  continuous-testing:
+    name: Continuous Testing
+    timeout-minutes: 60
+    runs-on: [self-hosted, linux]
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: lts/*
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Install Playwright Browsers
+      run: npx playwright install --with-deps
+
+    - name: Install Additional Browsers
+      run: |
+        npx playwright install chrome
+        npx playwright install msedge
+    
+    - name: Run Playwright tests
+      run: npx playwright test --grep ${{ github.event.inputs.tag || '@smoke' }}
+    
+    - name: Deploy report to Github Pages
+      if: always()
+      uses: peaceiris/actions-gh-pages@v2
+      env:
+        PERSONAL_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        PUBLISH_BRANCH: ghpages
+        PUBLISH_DIR: html-report
